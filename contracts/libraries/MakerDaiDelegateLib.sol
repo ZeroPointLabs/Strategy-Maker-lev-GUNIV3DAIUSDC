@@ -422,7 +422,6 @@ library MakerDaiDelegateLib {
             wipeAndFreeGem(gemJoinAdapter, cdpId, collateralBalance, remainingDebt);
             _swapYieldBearingToBorrowToken(balanceOfYieldBearing());
             _swapBorrowTokenToWant(balanceOfBorrowToken().sub(flashloanRepayAmount));
-            //_swapYieldBearingToWant(balanceOfYieldBearing());
             return;
         }
         //Make sure to always mint enough to repay the flashloan
@@ -526,18 +525,9 @@ library MakerDaiDelegateLib {
         _swapWantToBorrowToken(balanceOfWant());
     }
 
-    function _swapYieldBearingToWant(uint256 _amount) internal {
-        if (_amount == 0) {
-            return;
-        }
-        //Burn the yieldBearing token to unlock DAI and USDC:
-        yieldBearing.burn(Math.min(_amount, balanceOfYieldBearing()), address(this));
-        //Swap borrowToken to want
-        _swapBorrowTokenToWant(balanceOfBorrowToken());
-    }
-
     function _swapWantToBorrowToken(uint256 _wantAmount) public {
-        if (_wantAmount > 0 && balanceOfWant() >= _wantAmount){
+        if (_wantAmount > 0){
+            _wantAmount = Math.min(balanceOfWant(), _wantAmount);
             //Swap through PSM Want ---> BorrowToken: USDC-> DAI
             address psmGemJoin = psm.gemJoin();
             _checkAllowance(psmGemJoin, address(want), _wantAmount);
@@ -547,7 +537,8 @@ library MakerDaiDelegateLib {
     }
 
     function _swapBorrowTokenToWant(uint256 _borrowTokenAmount) public {
-        if (_borrowTokenAmount > 1000 && balanceOfBorrowToken() >= _borrowTokenAmount){
+        if (_borrowTokenAmount > 1000){
+            _borrowTokenAmount = Math.min(balanceOfBorrowToken(), _borrowTokenAmount);
             _checkAllowance(address(psm), address(borrowToken), _borrowTokenAmount);
             //buyGem means: DAI --> USDC, gotta approve DAI amount in 1e18, gotta buyGem amount in 1e6  
             psm.buyGem(address(this), _borrowTokenAmount.div(wantTo18Conversion));

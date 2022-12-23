@@ -93,9 +93,9 @@ contract Strategy is BaseStrategy {
     ) internal {
         strategyName = _strategyName;
 
-        //10M$ dai or usdc maximum trade
+        //5M$ usdc maximum trade per invest/divest
         maxSingleTrade = 5_000_000 * 1e6;
-        //10M$ dai or usdc maximum trade
+        //0.1 usdc mainimum trade to send profits to vault
         minSingleTrade = 1 * 1e5;
 
         //maxLossPPM: maxLoss in parts per millin of total strategy assets:
@@ -511,8 +511,8 @@ contract Strategy is BaseStrategy {
         //The Multipliers are basispoints 100.01 = +0.01% increase of DAI price. Multipliers of 10000 are returning the CurrentMakerVaultRatio()
         //The returned tuple contains (DAI amount, USDC amount):
         (uint256 otherTokenUnderlyingBalance, uint256 wantUnderlyingBalance) = yieldBearing.getUnderlyingBalances();
-        uint256 hypotheticalWantPerYieldBearing = otherTokenUnderlyingBalance.mul(_otherTokenMultiplier).add(wantUnderlyingBalance.mul(_wantMultiplier).mul(1e12)).mul(WAD).div(10000).div(yieldBearing.totalSupply());
-        return balanceOfMakerVault().mul(hypotheticalWantPerYieldBearing).mul(10000).div(balanceOfDebt().mul(_otherTokenMultiplier));
+        uint256 hypotheticalOtherTokenPerYieldBearing = otherTokenUnderlyingBalance.mul(_otherTokenMultiplier).add(wantUnderlyingBalance.mul(_wantMultiplier).mul(1e12)).mul(WAD).div(10000).div(yieldBearing.totalSupply());
+        return balanceOfMakerVault().mul(hypotheticalOtherTokenPerYieldBearing).mul(10000).div(balanceOfDebt().mul(_otherTokenMultiplier));
     }
 
     // check if the current baseFee is below our external target
