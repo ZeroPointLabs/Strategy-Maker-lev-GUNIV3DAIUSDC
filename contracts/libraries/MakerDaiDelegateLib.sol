@@ -526,8 +526,8 @@ library MakerDaiDelegateLib {
     }
 
     function _swapWantToBorrowToken(uint256 _wantAmount) public {
+        _wantAmount = Math.min(balanceOfWant(), _wantAmount);
         if (_wantAmount > 0){
-            _wantAmount = Math.min(balanceOfWant(), _wantAmount);
             //Swap through PSM Want ---> BorrowToken: USDC-> DAI
             address psmGemJoin = psm.gemJoin();
             _checkAllowance(psmGemJoin, address(want), _wantAmount);
@@ -537,8 +537,8 @@ library MakerDaiDelegateLib {
     }
 
     function _swapBorrowTokenToWant(uint256 _borrowTokenAmount) public {
+        _borrowTokenAmount = Math.min(balanceOfBorrowToken(), _borrowTokenAmount);
         if (_borrowTokenAmount > 1000){
-            _borrowTokenAmount = Math.min(balanceOfBorrowToken(), _borrowTokenAmount);
             _checkAllowance(address(psm), address(borrowToken), _borrowTokenAmount);
             //buyGem means: DAI --> USDC, gotta approve DAI amount in 1e18, gotta buyGem amount in 1e6  
             psm.buyGem(address(this), _borrowTokenAmount.div(wantTo18Conversion));
