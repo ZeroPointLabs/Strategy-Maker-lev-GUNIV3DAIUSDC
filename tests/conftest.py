@@ -2,6 +2,18 @@ import pytest
 from brownie import config, convert, interface, Contract
 ##################
 #################
+#Increase Maker DAI ceiling for tests
+@pytest.fixture(autouse=True)
+def increaseCeiling(ilk_yieldBearing):
+    autoline = Contract("0xC7Bdd1F2B16447dcf3dE045C4a039A60EC2f0ba3")
+    maker = "0xBE8E3e3618f7474F8cB1d074A26afFef007E98FB"
+    autoline.wards(maker)
+    #DAI/USDC2 LP 2 - 0.01% fee:
+    ilk = ilk_yieldBearing
+    line = autoline.ilks(ilk)["line"]
+    gap = autoline.ilks(ilk)["gap"]
+    autoline.setIlk(ilk, line*1000, gap*1000, 0, {"from": maker})
+    autoline.exec(ilk, {"from": maker})
 #Decide on Strategy Contract
 @pytest.fixture(autouse=True)
 def StrategyChoice(Strategy):    
@@ -325,6 +337,13 @@ def healthCheck(gov):
     yield healthCheck
 
 @pytest.fixture
+def setNewHealthCheck(gov, strategy):
+    #healthCheck = DummyHealthcheck.deploy({"from": gov})
+    healthCheck = Contract("0x5838c28cF6756858E876da5E27B11550EE7cC8E5") #dummy healthcheck always returning true
+    strategy.setHealthCheck(healthCheck, {"from": gov})
+    yield healthCheck
+
+@pytest.fixture
 def custom_osm(TestCustomOSM, gov):
     yield TestCustomOSM.deploy({"from": gov})
 
@@ -339,7 +358,7 @@ def basefeeChecker():
 
 @pytest.fixture
 def maxIL():
-    yield 1000e18
+    yield 100e18
 
 @pytest.fixture
 def strategy(vault, StrategyChoice, gov, osmProxy_want, osmProxy_yieldBearing, cloner, healthCheck):

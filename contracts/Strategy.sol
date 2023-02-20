@@ -26,7 +26,7 @@ contract Strategy is BaseStrategy {
     address internal constant gemJoinAdapter = 0xA7e4dDde3cBcEf122851A7C8F7A55f23c0Daf335;
 
     //Flashmint:
-    address internal constant flashmint = 0x1EB4CF3A948E7D72A198fe073cCb8C7a948cD853;
+    address public flashmint;
 
     IERC20 internal constant borrowToken = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
@@ -92,6 +92,7 @@ contract Strategy is BaseStrategy {
         string memory _strategyName
     ) internal {
         strategyName = _strategyName;
+        flashmint = 0x60744434d6339a6B27d73d9Eda62b6F66a0a04FA;
 
         //10M$ dai or usdc maximum trade
         maxSingleTrade = 5_000_000 * 1e18;
@@ -105,7 +106,7 @@ contract Strategy is BaseStrategy {
         maxReportDelay = 21 days; // 21 days in seconds, if we hit this then harvestTrigger = True
 
         // Set health check to health.ychad.eth
-        healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
+        //healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
 
         cdpId = MakerDaiDelegateLib.openCdp(ilk_yieldBearing);
         require(cdpId > 0); // dev: error opening cdp
@@ -145,6 +146,10 @@ contract Strategy is BaseStrategy {
 
     function setExpectedFlashmintFee(uint256 _expectedFlashmintFee) external onlyVaultManagers {
         expectedFlashmintFee = _expectedFlashmintFee;
+    }
+
+    function setFlashmint(address _flashmint) external onlyGovernance {
+        flashmint = _flashmint;
     }
 
     function setMaxLossPPM(uint256 _maxLossPPM) external onlyVaultManagers {
@@ -214,7 +219,7 @@ contract Strategy is BaseStrategy {
         external
         onlyVaultManagers
     {
-        MakerDaiDelegateLib.unwind(repayAmountOfWant, getCurrentMakerVaultRatio(), cdpId);
+        MakerDaiDelegateLib.unwind(repayAmountOfWant, getCurrentMakerVaultRatio(), cdpId, flashmint);
     }
 
     // ******** OVERRIDEN METHODS FROM BASE CONTRACT ************
@@ -267,7 +272,7 @@ contract Strategy is BaseStrategy {
         // If we have enough want to convert and deposit more into the maker vault, we do it
         //Here minSingleTrade represents the minimum investment of want that makes it worth it to loop 
         if (balanceOfWant() > _debtOutstanding.add(minSingleTrade) ) {
-            MakerDaiDelegateLib.wind(Math.min(maxSingleTrade, balanceOfWant().sub(_debtOutstanding)), collateralizationRatio, cdpId);
+            MakerDaiDelegateLib.wind(Math.min(maxSingleTrade, balanceOfWant().sub(_debtOutstanding)), collateralizationRatio, cdpId, flashmint);
         } else {
             //Check if collateralizationRatio needs adjusting
             // Allow the ratio to move a bit in either direction to avoid cycles
@@ -276,11 +281,11 @@ contract Strategy is BaseStrategy {
                 uint256 currentCollateral = balanceOfMakerVault();
                 uint256 yieldBearingToRepay = currentCollateral.sub( currentCollateral.mul(currentRatio).div(collateralizationRatio)  );
                 uint256 wantAmountToRepay = yieldBearingToRepay.mul(getWantPerYieldBearing()).div(WAD);
-                MakerDaiDelegateLib.unwind(Math.min(wantAmountToRepay, maxSingleTrade), collateralizationRatio, cdpId);
+                MakerDaiDelegateLib.unwind(Math.min(wantAmountToRepay, maxSingleTrade), collateralizationRatio, cdpId, flashmint);
             } else if (currentRatio > collateralizationRatio.add(upperRebalanceTolerance)) { //if current ratio is ABOVE goal ratio:
                 // Mint the maximum DAI possible for the locked collateral            
                 _lockCollateralAndMintDai(0, _borrowTokenAmountToMint(balanceOfMakerVault()).sub(balanceOfDebt()));
-                MakerDaiDelegateLib.wind(Math.min(maxSingleTrade, balanceOfWant().sub(_debtOutstanding)), collateralizationRatio, cdpId);
+                MakerDaiDelegateLib.wind(Math.min(maxSingleTrade, balanceOfWant().sub(_debtOutstanding)), collateralizationRatio, cdpId, flashmint);
             }
         }
         //Check safety of collateralization ratio after all actions:
@@ -303,7 +308,7 @@ contract Strategy is BaseStrategy {
             return (_wantAmountNeeded, 0);
         }
         //Not enough want to pay _wantAmountNeeded --> unwind position
-        MakerDaiDelegateLib.unwind(_wantAmountNeeded.sub(wantBalance), collateralizationRatio, cdpId);
+        MakerDaiDelegateLib.unwind(_wantAmountNeeded.sub(wantBalance), collateralizationRatio, cdpId, flashmint);
 
         //update free want after liquidating
         uint256 looseWant = balanceOfWant();

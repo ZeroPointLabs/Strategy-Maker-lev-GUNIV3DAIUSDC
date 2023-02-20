@@ -86,9 +86,6 @@ library MakerDaiDelegateLib {
 
     IERC20 internal constant borrowToken = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
-    //MAKER Flashmint:
-    IERC3156FlashLender public constant flashmint = IERC3156FlashLender(0x1EB4CF3A948E7D72A198fe073cCb8C7a948cD853);
-
     // Units used in Maker contracts
     uint256 internal constant WAD = 10**18;
     uint256 internal constant RAY = 10**27;
@@ -335,13 +332,14 @@ library MakerDaiDelegateLib {
     function wind(
         uint256 wantAmountInitial,
         uint256 targetCollateralizationRatio,
-        uint256 cdpId
+        uint256 cdpId,
+        address flashmint
     ) public {
         wantAmountInitial = Math.min(wantAmountInitial, balanceOfWant());
         //Calculate how much borrowToken to mint to leverage up to targetCollateralizationRatio:
         uint256 flashloanAmount = wantAmountInitial.mul(RAY).div(targetCollateralizationRatio.mul(1e9).sub(RAY));
         //Retrieve upper max limit of flashloan:
-        uint256 flashloanMaximum = flashmint.maxFlashLoan(address(borrowToken));
+        uint256 flashloanMaximum = IERC3156FlashLender(flashmint).maxFlashLoan(address(borrowToken));
         //Cap flashloan only up to maximum allowed:
         flashloanAmount = Math.min(flashloanAmount, flashloanMaximum);
         VatLike vat = VatLike(manager.vat());
@@ -353,26 +351,27 @@ library MakerDaiDelegateLib {
             return;
         }
         bytes memory data = abi.encode(Action.WIND, cdpId, wantAmountInitial, flashloanAmount, targetCollateralizationRatio); 
-        _initFlashLoan(data, flashloanAmount);
+        _initFlashLoan(data, flashloanAmount, flashmint);
     }
     
     function unwind(
         uint256 wantAmountRequested,
         uint256 targetCollateralizationRatio,
-        uint256 cdpId
+        uint256 cdpId,
+        address flashmint
     ) public {
         if (balanceOfCdp(cdpId, ilk_yieldBearing) == 0){
             return;
         }
         //Retrieve for upper max limit of flashloan:
-        uint256 flashloanMaximum = flashmint.maxFlashLoan(address(borrowToken));
+        uint256 flashloanMaximum = IERC3156FlashLender(flashmint).maxFlashLoan(address(borrowToken));
         //Paying off the full debt it's common to experience Vat/dust reverts: we circumvent this with add 1 Wei to the amount to be paid
         uint256 flashloanAmount = debtForCdp(cdpId, ilk_yieldBearing).add(1);
         //flashloan only up to maximum allowed:
         flashloanAmount = Math.min(flashloanAmount, flashloanMaximum);
         bytes memory data = abi.encode(Action.UNWIND, cdpId, wantAmountRequested, flashloanAmount, targetCollateralizationRatio);
         //Always flashloan entire debt to pay off entire debt:
-        _initFlashLoan(data, flashloanAmount);
+        _initFlashLoan(data, flashloanAmount, flashmint);
     }
 
     function _wind(uint256 cdpId, uint256 flashloanRepayAmount, uint256 wantAmountInitial, uint256) public {
@@ -453,10 +452,10 @@ library MakerDaiDelegateLib {
 
     // ----------------- INTERNAL FUNCTIONS -----------------
 
-    function _initFlashLoan(bytes memory data, uint256 amount) internal {
+    function _initFlashLoan(bytes memory data, uint256 amount, address flashmint) internal {
         //Flashmint implementation:
         _checkAllowance(address(flashmint), address(borrowToken), amount);
-        flashmint.flashLoan(address(this), address(borrowToken), amount, data);
+        IERC3156FlashLender(flashmint).flashLoan(address(this), address(borrowToken), amount, data);
     }
 
     function _checkAllowance(
