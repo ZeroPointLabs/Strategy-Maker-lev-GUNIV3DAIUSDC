@@ -26,7 +26,7 @@ def test_aauniswapV3_profit(
     #token --> partnerToken
     uniswapAmount = token.balanceOf(token_whale)*0.1
     token.approve(uniswapv3, uniswapAmount, {"from": token_whale})
-    uniswapv3.exactInputSingle((token, partnerToken, 100, token_whale, 1856589943, uniswapAmount, 0, 0), {"from": token_whale})
+    uniswapv3.exactInputSingle((token, partnerToken, 500, token_whale, 1856589943, uniswapAmount, 0, 0), {"from": token_whale})
     chain.sleep(1)
 
     priceAfter = test_strategy.getWantPerYieldBearing()
