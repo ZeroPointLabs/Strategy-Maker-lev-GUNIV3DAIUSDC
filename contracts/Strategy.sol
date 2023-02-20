@@ -106,7 +106,7 @@ contract Strategy is BaseStrategy {
         maxReportDelay = 21 days; // 21 days in seconds, if we hit this then harvestTrigger = True
 
         // Set health check to health.ychad.eth
-        //healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
+        healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
 
         cdpId = MakerDaiDelegateLib.openCdp(ilk_yieldBearing);
         require(cdpId > 0); // dev: error opening cdp
